@@ -60,13 +60,13 @@
 - 빈 팩토리를 확장한 IoC 컨테이너
 - 빈 팩토리와 기본적인 기능은 동일함
 - 스프링이 제공하는 각종 부가 서비스를 추가로 제공함
-- ApplicationContext는 애플리케이션 컨텍스트가 구현해야하는 기본 인터페이스
-  - BeanFactory를 상속함
+- `ApplicationContext`는 애플리케이션 컨텍스트가 구현해야하는 기본 인터페이스
+  - `BeanFactory`를 상속함
 
 #### 설정정보/설정 메타정보
 
 - 애플리케이션 컨텍스트나 빈 팩토리가 IoC를 적용하기 위해 사용하는 메타정보
-- configuration이라고 함
+- `configuration`이라고 함
 - IoC 컨테이너에 의해 관리되는 애플리케이션 오브젝트를 생성하고 구성할 때 사용
 
 #### 컨테이너 or IoC 컨테이너
@@ -116,13 +116,121 @@
 
 ### 종류
 
-- 생성자 주입 - 의존성이 생성자를 통해 주입됨 (권장!!)
+1. 생성자 주입 - 의존성이 생성자를 통해 주입됨 (권장!!)
+
+``` java
+@Controller // 의존성이 주입되는 클래스도 빈으로 등록되어있어야함
+public class PostController {
+  private final PostService postService;
+  
+  // 생성자 PostController로 의존성 주입
+  @Autowired
+  public PostController(PostService postService){
+    this.postService = postService
+  }
+  
+  ...
+}
+```
+
+- 객체가 생성될 때 의존성 주입
+- 장점
+  - `final` 필드를 사용하여 불변성을 유지할 수 있음
+  - 무조건 설정해줘야하기 때문에 누락이 발생하지 않음
+- 단점
+  - 복잡한 객체의 경우 생성자 매개변수가 많아질 수 있음
+  - 순환 참조가 발생할 수 있음
+- **가장 권장되는 방식**
+
+
+
+2. 세터 주입 - 의존성이 세터 메서드를 통해 주입됨
+
+``` java
+@Controller
+public class PostController {
+  private final PostService postService;
+  
+  // Setter 메서드로 의존성 주입
+  @Autowired
+  public void setPostService(PostService postService){
+    this.postService = postService
+  }
+  
+  ...
+}
+```
+
+- 객체가 생성된 후, 별도로 호출되는 세터 메서드로 의존성 주입
+- 장점
+  - 의존성을 필요에 따라 변경하거나, 주입 시점을 조절할 수 있음
+- 단점
+  - 세터가 호출되지 않으면 의존성이 주입되지 않은 상태로 객체가 존재할 수 있음
+  - 선택적으로 넣거나, 뺄 수 있는 것처럼 보일 수도 있음 (의존적으로 보이지 않을수도 있음)
+  - `setter` 메서드로 진행하기 때문에 주입된 의존성의 변경이 가능하여 객체의 불변성 보장이 어려움
+
+
+
+3. 필드 주입 - 필드에 직접 의존성을 주입하는 방식
+
+``` java
+@Controller
+public class PostController {
+  
+  @Autowired
+  private PostService postService; // 필드에 바로 주입
+  
+  ...
+}
+```
+
+- 객체가 생성된 후, DI 컨테이너가 필드에 직접 접근하여 주입
+- 장점
+  - 필드 위에 주입 어노테이션만 추가하면 가능
+  - 별도의 생성자나 세터 메서드를 사용하지 않아도 됨
+- 단점
+  - `private` 필드는 테스트 시 의존성을 주입하기 어려움
+  - `final` 필드를 사용할 수 없기 때문에 불변성을 유지하기 어려움
+  - 클래스의 의존성을 직접적으로 알기 어려움
+  - DI 컨테이너 없이 필드 주입이 불가능함
+
+### 어노테이션
+
+#### @Autowired
+
+- [공식 문서](https://docs.spring.io/spring-framework/reference/core/beans/annotation-config/autowired.html)
+
+- 생성자 주입, 세터 주입, 필드 주입에서 사용할 수 있음
+- 필요한 의존성을 알아서 주입해줌
+- `@Component`로 등록된 빈만 자동으로 주입이 가능함
+- 생성자 주입 방식에서 생성자가 1개일 경우 어노테이션을 붙이지 않아도 자동 주입의 대상으로 인식함 (Spring 4.3 이상)
+
+- `@Autowired(required = false)`로 설정하면, 필수가 아닌 것으로 표시하여 후보가 되는 빈이 없을 때 무시함
+
+
+
+#### @RequiredArgsConstructor
+
+- Lombok에 포함됨
+
+- DI 방식 중 생성자 주입을 임의의 코드없이 자동으로 설정해주는 어노테이션
+
+- 초기화되지않은  `final` 필드나 `@NonNull`이 붙은 필드에 대해 생성자를 생성함
+
+  - `final`을 사용하지 않으면 `NullPointerException`이 발생할 수 있음
+  - 한번 의존성을 주입받은 객체는 프로그램이 끝날 때까지 변하지 않기 때문에 불변성을 표시해주는 것이 좋음
+
+- `@Autowired`를 사용하지 않고 자동으로 의존성을 주입함
+
+- `@RequiredArgsConstructor`를 사용하지 않은 예시
 
   ``` java
+  @Controller
   public class PostController {
     private final PostService postService;
     
     // 생성자 PostController로 의존성 주입
+    @Autowired
     public PostController(PostService postService){
       this.postService = postService
     }
@@ -131,84 +239,19 @@
   }
   ```
 
-  - 객체가 생성될 때 의존성 주입
-  - 장점
-    - final 필드를 사용하여 불변성을 유지할 수 있음
-  - 단점
-    - 복잡한 객체의 경우 생성자 매개변수가 많아질 수 있음
-  - **가장 권장되는 방식**
-
-- 세터 주입 - 의존성이 세터 메서드를 통해 주입됨
+- `@RequiredArgsConstructor`를 사용한 예시
 
   ``` java
+  @Controller
+  @RequiredArgsConstructor
   public class PostController {
+    // 자동으로 해당 필드의 생성자를 생성하여 주입함
     private final PostService postService;
-    
-    // Setter 메서드로 의존성 주입
-    public void setPostService(PostService postService){
-      this.postService = postService
-    }
+   
     
     ...
   }
   ```
 
-  - 객체가 생성된 후, 별도로 호출되는 세터 메서드로 의존성 주입
-  - 장점
-    - 의존성을 필요에 따라 변경하거나, 주입 시점을 조절할 수 있음
-  - 단점
-    - 세터가 호출되지 않으면 의존성이 주입되지 않은 상태로 객체가 존재할 수 있음
-    - 선택적으로 넣거나, 뺄 수 있는 것처럼 보일 수도 있음 (의존적으로 보이지 않을수도 있음)
-    - setter 메서드로 진행하기 때문에 주입된 의존성의 변경이 가능하여 객체의 불변성 보장이 어려움
-
-- 인터페이스 주입 - 의존성이 인터페이스를 통해 주입됨
-
-  ``` java
-  // 인터페이스 정의
-  public interface PostInterface{
-    void setPostService(PostService postService);
-  }
   
-  // 인터페이스 구현
-  public class PostController implements PostInterface {
-    private PostService postService;
-    
-    // 인터페이스의 메서드로 의존성 주입
-    @Override
-    public void setPostService(PostService postService) {
-      this.postService = postService;
-    }
-    ...
-  }
-  ```
 
-  - DI 컨테이너가 특정 인터페이스의 메서드를 호출할 때 주입함
-  - 장점
-    - 주입되는 의존성을 인터페이스로 명확하게 파악 가능
-    - DI 컨테이너에 의존하지 않고, 독립적으로 의존성을 주입받음
-  - 단점
-    - 인터페이스를 정의해야하기 때문에 코드가 복잡해짐
-    - 의존성마다 인터페이스가 필요해질 수 있어서 코드 양이 증가함
-    - 다른 주입 방법에 비해 사용 빈도가 낮고 잘 사용되지 않음
-
-- 필드 주입 - 필드에 직접 의존성을 주입하는 방식
-
-  ``` java
-  public class PostController {
-    
-    @Autowired
-    private PostService postService; // 필드에 바로 주입
-    
-    ...
-  }
-  ```
-
-  - 객체가 생성된 후, DI 컨테이너가 필드에 직접 접근하여 주입
-  - 장점
-    - 필드 위에 주입 어노테이션만 추가하면 가능
-    - 별도의 생성자나 세터 메서드를 사용하지 않아도 됨
-  - 단점
-    - private 필드는 테스트 시 의존성을 주입하기 어려움
-    - final 필드를 사용할 수 없기 때문에 불변성을 유지하기 어려움
-    - 클래스의 의존성을 직접적으로 알기 어려움
-    - DI 컨테이너 없이 필드 주입이 불가능함
